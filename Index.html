@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Recipe workbook export</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#f6f7f6;--surface:#ffffff;--ink:#2b211c;--muted:#6b625c;--line:#dedcd8;--accent:#1f6f5c;--accent-ink:#ffffff;--warn:#9a5b00;--warn-bg:#fff6e5;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171513;--surface:#211e1b;--ink:#efe9e4;--muted:#a59c95;--line:#3a3530;--accent:#5cc4a6;--accent-ink:#10231d;--warn:#f0b75a;--warn-bg:#2d2414;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171513;--surface:#211e1b;--ink:#efe9e4;--muted:#a59c95;--line:#3a3530;--accent:#5cc4a6;--accent-ink:#10231d;--warn:#f0b75a;--warn-bg:#2d2414;color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:40px 20px 60px}
+h1{font-size:1.75rem;line-height:1.2;margin:0 0 6px;font-weight:700}
+p.lead{margin:0 0 28px;color:var(--muted)}
+.drop{display:block;border:2px dashed var(--line);border-radius:12px;background:var(--surface);padding:32px 20px;text-align:center;cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--accent)}
+.drop:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.drop strong{display:block;font-size:1.05rem}
+.drop span{color:var(--muted);font-size:.9rem}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.opts{margin:16px 0 0;font-size:.9rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center}
+.opts label{cursor:pointer}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer}
+#status{margin:24px 0 0;min-height:1.5em}
+#status.err{color:#c0392b}
+.out{margin-top:20px;border-top:1px solid var(--line)}
+.row{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--line)}
+.row h2{font-size:1rem;margin:0}
+.row p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+button.dl{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:10px 16px;font:500 .95rem Figtree,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+button.dl:focus-visible,.linkbtn:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.all{margin-top:20px}
+.notes{margin-top:24px;background:var(--warn-bg);color:var(--ink);border-left:4px solid var(--warn);padding:12px 16px;border-radius:4px;font-size:.9rem}
+.notes ul{margin:6px 0 0;padding-left:20px}
+.notes details summary{cursor:pointer}
+[hidden]{display:none!important}
+.site{margin:0 0 20px}
+.site label{display:block;font-weight:500;margin-bottom:6px}
+.site input{width:100%;max-width:420px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit}
+.site input:focus-visible{outline:3px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+#sitePreview{display:block;margin-top:6px;color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<main>
+  <h1>Recipe workbook export</h1>
+  <p class="lead">Upload the filled Sadie Coffee recipe workbook to turn it into the Ingredients, Manufacturing Recipes and Recipes import files.</p>
+
+  <div class="site">
+    <label for="siteName">Site name</label>
+    <input type="text" id="siteName" placeholder="e.g. Sadie Coffee Roastery" autocomplete="off">
+    <span id="sitePreview">Files will be named like: ingredients_template.xlsx</span>
+  </div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".xlsx,.xlsm,.xls">
+    <strong>Choose the filled workbook</strong>
+    <span>or drop it here (…Recipe_Workbook_FILLED.xlsx)</span>
+  </label>
+
+  <div class="opts">
+    <label><input type="checkbox" id="stripMan" checked> Remove “ (MAN)” from ingredient names</label>
+  </div>
+
+  <p id="status" role="status"></p>
+
+  <section id="results" hidden>
+    <div class="out">
+      <div class="row"><div><h2>Ingredients</h2><p id="sumIng"></p></div><button class="dl" data-k="ing" type="button">Download</button></div>
+      <div class="row"><div><h2>Manufacturing Recipes</h2><p id="sumMan"></p></div><button class="dl" data-k="man" type="button">Download</button></div>
+      <div class="row"><div><h2>Recipes</h2><p id="sumRec"></p></div><button class="dl" data-k="rec" type="button">Download</button></div>
+    </div>
+    <button class="dl all" id="dlAll" type="button">Download all three as a zip</button>
+    <div class="notes" id="notes" hidden></div>
+  </section>
+</main>
+
+<script>
+const ING_HEAD = ['name','category','item_type','recipe_uom','unit_cost','super_category','par_value','min_order_qty','order_cadence_days','preferred_order_day','xero_account_code','sage_account_id','preferred_supplier','supplier_order_uom','count_uom_1','count_factor_1','count_uom_2','count_factor_2','count_uom_3','count_factor_3'];
+const REC_HEAD = ['menu_item_uuid','menu_item_name','category','super_category','modifier','retail','target_gp_percent','ingredient_name','quantity','unit'];
+const MAN_HEAD = ['Recipe ID','Recipe Name','Description','Output Ingredient','Expected Output Quantity','Output Size','Stock Location','Theoretical Yield %','Automatic','Input Ingredient','Input Quantity'];
+function sitePrefix(){
+  const el = document.getElementById('siteName');
+  const s = (el ? el.value : '').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
+  return s ? s + '_' : '';
+}
+const OUT = {
+  ing:{base:'ingredients_template.xlsx', sheet:'Ingredients', get file(){ return sitePrefix() + this.base; }},
+  man:{base:'manufacturing_recipes_template.xlsx', sheet:'Manufacturing Recipes', get file(){ return sitePrefix() + this.base; }},
+  rec:{base:'recipes_template_2026-10-26.xlsx', sheet:'Recipes', get file(){ return sitePrefix() + this.base; }}
+};
+function updateSitePreview(){
+  document.getElementById('sitePreview').textContent = 'Files will be named like: ' + OUT.ing.file;
+}
+document.getElementById('siteName').addEventListener('input', () => {
+  updateSitePreview();
+  try { localStorage.setItem('siteName', document.getElementById('siteName').value); } catch {}
+});
+try { const saved = localStorage.getItem('siteName'); if (saved) document.getElementById('siteName').value = saved; } catch {}
+updateSitePreview();
+
+let lastWorkbook = null;
+let built = null;
+const $ = id => document.getElementById(id);
+
+const blank = v => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+const clean = v => blank(v) ? '' : (typeof v === 'string' ? v.trim() : v);
+const norm = s => String(s ?? '').trim().toLowerCase();
+
+function stripMan(name){
+  if (!$('stripMan').checked || typeof name !== 'string') return name;
+  return name.replace(/\s*\(MAN\)\s*$/i, '');
+}
+
+// Read a tab: find its header row, then use the section under the repeated (second) header
+// so the green example rows are skipped. Returns array of objects keyed by header.
+function readSection(wb, sheetName){
+  const ws = wb.Sheets[sheetName];
+  if (!ws) throw new Error(`The workbook has no “${sheetName}” tab.`);
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+  const head = (rows[0] || []).map(h => String(h ?? '').trim());
+  let start = 1;
+  for (let i = 1; i < rows.length; i++){
+    if (norm(rows[i][0]) === norm(head[0]) && norm(rows[i][1]) === norm(head[1])) { start = i + 1; break; }
+  }
+  const out = [];
+  for (let i = start; i < rows.length; i++){
+    const r = rows[i]; if (!r || r.every(blank)) continue;
+    if (norm(r[0]) === norm(head[0])) continue;
+    const o = {}; head.forEach((h, j) => o[h] = r[j]); out.push(o);
+  }
+  return out;
+}
+
+function buildAll(wb){
+  const notes = [];
+
+  // Ingredients
+  const ingSrc = readSection(wb, 'Ingredients').filter(r => !blank(r.name));
+  const uomByName = {};
+  ingSrc.forEach(r => { uomByName[norm(r.name)] = clean(r.recipe_uom); if (!blank(r.dropdown_name)) uomByName[norm(r.dropdown_name)] = clean(r.recipe_uom); });
+  const ingRows = ingSrc.map(r => ING_HEAD.map(h => {
+    let v = clean(r[h]);
+    if (h === 'count_uom_1' && v === '' ) v = clean(r.recipe_uom);
+    if (h === 'count_factor_1' && v === '' && clean(r.recipe_uom) !== '') v = 1;
+    return v;
+  }));
+  const noUom = ingSrc.filter(r => blank(r.recipe_uom)).map(r => r.name);
+  if (noUom.length) notes.push({t:`${noUom.length} ingredient(s) have no recipe UOM`, items:noUom});
+
+  // Manufacturing recipes
+  const manSrc = readSection(wb, 'Manufacturing Recipe').filter(r => !blank(r['Recipe Name']) || !blank(r['Input Ingredient']));
+  const manRows = manSrc.map(r => {
+    const name = clean(r['Recipe Name']);
+    const outIng = blank(r['Output Ingredient']) ? name : clean(r['Output Ingredient']);
+    return ['', name, clean(r['Description']), stripMan(outIng), clean(r['Expected Output Quantity']), clean(r['Output Size']),
+            clean(r['Stock Location']), clean(r['Theoretical Yield %']), '', stripMan(clean(r['Input Ingredient'])), clean(r['Input Quantity'])];
+  });
+  const manRecipes = new Set(manRows.map(r => r[1])).size;
+
+  // Menu item recipes -> Recipes template (menu_item_uuid and other menu columns left blank)
+  const recSrc = readSection(wb, 'Menu Item Recipe').filter(r => !blank(r.menu_item_name) && !blank(r.ingredient_name));
+  const missingUnit = new Set();
+  const recRows = recSrc.map(r => {
+    let unit = clean(r.unit);
+    if (unit === '' || unit === 'Not found') {
+      unit = uomByName[norm(r.ingredient_name)] || '';
+      if (!unit) missingUnit.add(clean(r.ingredient_name));
+    }
+    return ['', clean(r.menu_item_name), '', '', '', '', '', stripMan(clean(r.ingredient_name)), clean(r.quantity), unit];
+  });
+  if (missingUnit.size) notes.push({t:`${missingUnit.size} recipe ingredient(s) aren’t on the Ingredients tab, so their unit is blank`, items:[...missingUnit]});
+  const recItems = new Set(recRows.map(r => norm(r[1]))).size;
+
+  return {
+    ing:{head:ING_HEAD, rows:ingRows, summary:`${ingRows.length} ingredients`},
+    man:{head:MAN_HEAD, rows:manRows, summary:`${manRecipes} recipes, ${manRows.length} input lines`},
+    rec:{head:REC_HEAD, rows:recRows, summary:`${recItems} menu items, ${recRows.length} ingredient lines`},
+    notes
+  };
+}
+
+function render(){
+  $('sumIng').textContent = built.ing.summary;
+  $('sumMan').textContent = built.man.summary;
+  $('sumRec').textContent = built.rec.summary;
+  const n = $('notes');
+  if (built.notes.length){
+    n.innerHTML = '<strong>Check before importing</strong><ul></ul>';
+    built.notes.forEach(note => {
+      const li = document.createElement('li');
+      const d = document.createElement('details'); const s = document.createElement('summary');
+      s.textContent = note.t; d.appendChild(s);
+      const p = document.createElement('p'); p.style.margin = '4px 0'; p.textContent = note.items.join(', ');
+      d.appendChild(p); li.appendChild(d); n.querySelector('ul').appendChild(li);
+    });
+    n.hidden = false;
+  } else n.hidden = true;
+  $('results').hidden = false;
+}
+
+function rebuild(){
+  if (!lastWorkbook) return;
+  try { built = buildAll(lastWorkbook); render(); setStatus('Ready. Download the files below.'); }
+  catch(e){ $('results').hidden = true; setStatus(e.message, true); }
+}
+
+function setStatus(msg, err){ const s = $('status'); s.textContent = msg; s.className = err ? 'err' : ''; }
+
+function readFile(file){
+  return file.arrayBuffer().then(buf => XLSX.read(buf, {type:'array', cellDates:false}));
+}
+
+async function loadMain(file){
+  if (!file) return;
+  setStatus(`Reading ${file.name}…`);
+  try { lastWorkbook = await readFile(file); rebuild(); }
+  catch(e){ setStatus('That file couldn’t be read as an Excel workbook.', true); }
+}
+
+$('file').addEventListener('change', e => loadMain(e.target.files[0]));
+const drop = $('drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => loadMain(e.dataTransfer.files[0]));
+$('stripMan').addEventListener('change', rebuild);
+
+let downloadsP = null;
+function getDownloads(){
+  if (!downloadsP) downloadsP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+  return downloadsP;
+}
+getDownloads();
+
+function xlsxBlob(k){
+  const d = built[k];
+  const ws = XLSX.utils.aoa_to_sheet([d.head, ...d.rows]);
+  ws['!cols'] = d.head.map(h => ({wch: Math.max(12, String(h).length + 2)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, OUT[k].sheet);
+  const data = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  return new Blob([data], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+async function saveOne(k){ return saveBlob(OUT[k].file, xlsxBlob(k)); }
+async function saveBlob(filename, blob){
+  const dl = await getDownloads();
+  if (dl){
+    try { await dl.save({filename, data: blob}); setStatus(`Saved ${filename}.`); return true; }
+    catch(e){ if (e && e.code === 'declined') { setStatus(`${filename} wasn’t saved.`); return false; } if (e && e.code === 'rate_limited') { setStatus('Finish the open save prompt first.'); return false; } }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  setStatus(`Saved ${filename}.`); return true;
+}
+
+document.querySelectorAll('button[data-k]').forEach(b => b.addEventListener('click', () => built && saveOne(b.dataset.k)));
+$('dlAll').addEventListener('click', async () => {
+  if (!built) return;
+  if (typeof JSZip === 'undefined') { setStatus('The zip tool didn’t load. Reload the page and try again.', true); return; }
+  setStatus('Building zip…');
+  const zip = new JSZip();
+  for (const k of ['ing','man','rec']) zip.file(OUT[k].file, xlsxBlob(k));
+  const blob = await zip.generateAsync({type:'blob'});
+  await saveBlob(sitePrefix() + 'import_templates.zip', blob);
+});
+</script>
+</body>
+</html>
